@@ -96,22 +96,29 @@ class _SplashGateState extends State<SplashGate> {
 
 /// Listens to the Supabase auth stream and routes accordingly:
 /// - If signed in  → MainShell
+/// - If guest mode → MainShell (limited access)
 /// - If signed out → LoginScreen
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<AuthState>(
-      stream: SupabaseService.authStateChanges,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          // Still waiting — return blank (splash is on top anyway)
-          return const Scaffold(body: SizedBox.shrink());
-        }
-        final session = snapshot.data!.session;
-        if (session != null) return const MainShell();
-        return const LoginScreen();
+    return Consumer<AppState>(
+      builder: (context, appState, _) {
+        // Guest mode bypasses auth check
+        if (appState.isGuest) return const MainShell();
+
+        return StreamBuilder<AuthState>(
+          stream: SupabaseService.authStateChanges,
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Scaffold(body: SizedBox.shrink());
+            }
+            final session = snapshot.data!.session;
+            if (session != null) return const MainShell();
+            return const LoginScreen();
+          },
+        );
       },
     );
   }
@@ -175,8 +182,12 @@ class _MainShellState extends State<MainShell> {
     _NavDef(icon: Icons.person_outline_rounded,     activeIcon: Icons.person_rounded,            label: 'Profile'),
   ];
 
+  // Tabs accessible to guests
+  static const _guestAllowedTabs = {0, 1}; // Home, Maps
+
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
     return Scaffold(
       key: _scaffoldKey,
       extendBody: true,
@@ -184,7 +195,12 @@ class _MainShellState extends State<MainShell> {
         currentIndex: _index,
         onNavigate: (i) => setState(() => _index = i),
       ),
-      body: IndexedStack(index: _index, children: _pages),
+      body: Column(
+        children: [
+          if (appState.isGuest) const _GuestBanner(),
+          Expanded(child: IndexedStack(index: _index, children: _pages)),
+        ],
+      ),
       bottomNavigationBar: _buildBottomNav(context),
     );
   }
@@ -215,9 +231,16 @@ class _MainShellState extends State<MainShell> {
                     final item = _navItems[i];
                     final active = _index == i;
                     final badge = (i == 3) ? state.unreadCount : (i == 2) ? state.wishlistCount : 0;
+                    final isLocked = state.isGuest && !_guestAllowedTabs.contains(i);
                     return Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() => _index = i),
+                        onTap: () {
+                          if (isLocked) {
+                            _showGuestPrompt(context, i);
+                          } else {
+                            setState(() => _index = i);
+                          }
+                        },
                         behavior: HitTestBehavior.opaque,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -232,10 +255,24 @@ class _MainShellState extends State<MainShell> {
                                     color: active ? const Color(0xFFEFF6FF) : Colors.transparent,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: Icon(
-                                    active ? item.activeIcon : item.icon,
-                                    size: 22,
-                                    color: active ? AppColors.primary : AppColors.textLight,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Icon(
+                                        active ? item.activeIcon : item.icon,
+                                        size: 22,
+                                        color: isLocked
+                                            ? AppColors.textLight.withValues(alpha: 0.45)
+                                            : active ? AppColors.primary : AppColors.textLight,
+                                      ),
+                                      if (isLocked)
+                                        Positioned(
+                                          bottom: 2, right: 2,
+                                          child: Icon(Icons.lock_rounded,
+                                              size: 9,
+                                              color: AppColors.textLight.withValues(alpha: 0.5)),
+                                        ),
+                                    ],
                                   ),
                                 ),
                                 if (badge > 0)
@@ -252,18 +289,186 @@ class _MainShellState extends State<MainShell> {
                             ),
                             const SizedBox(height: 1),
                             Text(item.label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
-                              color: active ? AppColors.primary : AppColors.textLight)),
-                        ],
+                              color: isLocked
+                                  ? AppColors.textLight.withValues(alpha: 0.45)
+                                  : active ? AppColors.primary : AppColors.textLight)),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
             ),
           ),
-        ),
-      );
+        );
       },
+    );
+  }
+
+  void _showGuestPrompt(BuildContext context, int tabIndex) {
+    final labels = ['Home', 'Maps', 'Wishlist', 'Messages', 'Profile'];
+    final icons  = [Icons.home_rounded, Icons.map_rounded, Icons.favorite_rounded,
+                    Icons.chat_bubble_rounded, Icons.person_rounded];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _GuestPromptSheet(
+        featureLabel: labels[tabIndex],
+        featureIcon: icons[tabIndex],
+      ),
+    );
+  }
+}
+
+class _GuestBanner extends StatelessWidget {
+  const _GuestBanner();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.amber.shade50,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.amber.shade800, size: 16),
+          const SizedBox(width: 8),
+          Expanded(child: Text("Guest Mode: Sign in to unlock all features", 
+            style: TextStyle(color: Colors.amber.shade900, fontSize: 12, fontWeight: FontWeight.w500))),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuestPromptSheet extends StatelessWidget {
+  final String featureLabel;
+  final IconData featureIcon;
+  const _GuestPromptSheet({required this.featureLabel, required this.featureIcon});
+
+  static const _benefits = [
+    '🏠  Save properties to your Wishlist',
+    '💬  Chat directly with verified agents',
+    '📋  Track your listing applications',
+    '🔔  Get real-time listing notifications',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.read<AppState>();
+    return Container(
+      padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Container(
+            width: 40, height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Icon
+          Container(
+            width: 72, height: 72,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+                  blurRadius: 16, offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Icon(featureIcon, color: Colors.white, size: 34),
+          ),
+          const SizedBox(height: 20),
+
+          // Title
+          Text(
+            'Unlock $featureLabel',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Sign in or create a free account to access $featureLabel and much more.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.5),
+          ),
+          const SizedBox(height: 20),
+
+          // Benefits list
+          ...(_benefits.map((b) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Text(b, style: const TextStyle(fontSize: 13, color: Color(0xFF334155))),
+              ],
+            ),
+          ))),
+          const SizedBox(height: 24),
+
+          // Sign In button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                appState.exitGuestMode();
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (r) => false,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1D4ED8),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                elevation: 0,
+              ),
+              child: const Text('Sign In', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Create Account button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                appState.exitGuestMode();
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (r) => false,
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF1D4ED8),
+                side: const BorderSide(color: Color(0xFF1D4ED8), width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text('Create Account', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

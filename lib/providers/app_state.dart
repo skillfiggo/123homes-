@@ -8,6 +8,19 @@ class AppState extends ChangeNotifier {
   final Set<int> _wishlist = {};
   bool isDarkMode = false;
 
+  // ── Guest mode ────────────────────────────────────────────────────────────
+  bool isGuest = false;
+
+  void enterGuestMode() {
+    isGuest = true;
+    notifyListeners();
+  }
+
+  void exitGuestMode() {
+    isGuest = false;
+    notifyListeners();
+  }
+
   // ── Settings preferences ───────────────────────────────────────────────────
   bool notifListingUpdates   = true;  // notify on listing approval/rejection
   bool notifNewMessages      = true;  // notify on new chat messages
@@ -89,11 +102,24 @@ class AppState extends ChangeNotifier {
   int get unreadCount => chatConversations.fold(0, (s, c) => s + c.unreadCount);
 
   AppState() {
-    _loadProperties();
-    _loadAgents();
-    _loadProfile();
-    _loadConversations();
-    _loadNotifications();
+    _loadProperties();      // public — loads for guests too
+    _loadAgents();          // public — loads for guests too
+    if (SupabaseService.isAuthenticated) {
+      _loadProfile();
+      _loadConversations();
+      _loadNotifications();
+    }
+  }
+
+  /// Re-initialize authenticated data after a guest signs in.
+  Future<void> onSignIn() async {
+    isGuest = false;
+    await Future.wait([
+      _loadProfile(),
+      _loadConversations(),
+      _loadNotifications(),
+    ]);
+    notifyListeners();
   }
 
   // ── Profile loading ───────────────────────────────────────────────────────

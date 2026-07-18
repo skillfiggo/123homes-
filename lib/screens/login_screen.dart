@@ -1,8 +1,10 @@
 // lib/screens/login_screen.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
+import '../providers/app_state.dart';
 import '../main.dart';
 import 'signup_screen.dart';
 
@@ -35,8 +37,9 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
       if (!mounted) return;
-      // Navigate explicitly — LoginScreen may be pushed on top of AuthGate
-      // so we can't rely solely on the stream to update the visible widget.
+      // If user was in guest mode, load their authenticated data now
+      await context.read<AppState>().onSignIn();
+      if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainShell()),
         (route) => false,
@@ -370,6 +373,37 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                               ],
+                            ),
+
+                            // Browse as Guest button
+                            const SizedBox(height: 4),
+                            TextButton(
+                              onPressed: () {
+                                context.read<AppState>().enterGuestMode();
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (_) => const MainShell()),
+                                  (route) => false,
+                                );
+                              },
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Browse as Guest',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.65),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 14,
+                                    color: Colors.white.withValues(alpha: 0.65),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
