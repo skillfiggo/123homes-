@@ -265,13 +265,6 @@ class _MainShellState extends State<MainShell> {
                                             ? AppColors.textLight.withValues(alpha: 0.45)
                                             : active ? AppColors.primary : AppColors.textLight,
                                       ),
-                                      if (isLocked)
-                                        Positioned(
-                                          bottom: 2, right: 2,
-                                          child: Icon(Icons.lock_rounded,
-                                              size: 9,
-                                              color: AppColors.textLight.withValues(alpha: 0.5)),
-                                        ),
                                     ],
                                   ),
                                 ),
