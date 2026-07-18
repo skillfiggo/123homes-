@@ -300,6 +300,41 @@ class _LoginScreenState extends State<LoginScreen> {
                                             style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                                           ),
                                   ),
+
+                                  // Browse as Guest — right below the main CTA
+                                  const SizedBox(height: 2),
+                                  TextButton(
+                                    onPressed: () {
+                                      context.read<AppState>().enterGuestMode();
+                                      Navigator.of(context).pushAndRemoveUntil(
+                                        MaterialPageRoute(builder: (_) => const MainShell()),
+                                        (route) => false,
+                                      );
+                                    },
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 6),
+                                      minimumSize: const Size(double.infinity, 0),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          'Browse as Guest',
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(alpha: 0.65),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.arrow_forward_rounded,
+                                          size: 14,
+                                          color: Colors.white.withValues(alpha: 0.65),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -374,39 +409,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ],
                             ),
-
-                            // Browse as Guest button
-                            const SizedBox(height: 4),
-                            TextButton(
-                              onPressed: () {
-                                context.read<AppState>().enterGuestMode();
-                                Navigator.of(context).pushAndRemoveUntil(
-                                  MaterialPageRoute(builder: (_) => const MainShell()),
-                                  (route) => false,
-                                );
-                              },
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Browse as Guest',
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.65),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    Icons.arrow_forward_rounded,
-                                    size: 14,
-                                    color: Colors.white.withValues(alpha: 0.65),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                           ],
+                         ),
                       ],
                     ),
                   ),
