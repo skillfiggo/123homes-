@@ -1,8 +1,10 @@
 // lib/screens/signup_screen.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
+import '../providers/app_state.dart';
 import '../main.dart';
 import 'otp_screen.dart';
 
@@ -302,6 +304,36 @@ class _SignupScreenState extends State<SignupScreen>
                                     style: TextStyle(color: Color(0xFF60A5FA), fontWeight: FontWeight.w700, fontSize: 13)),
                                 ),
                               ],
+                            ),
+
+                            // Browse as Guest button
+                            TextButton(
+                              onPressed: () {
+                                context.read<AppState>().enterGuestMode();
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (_) => const MainShell()),
+                                  (route) => false,
+                                );
+                              },
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Browse as Guest',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.65),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 14,
+                                    color: Colors.white.withValues(alpha: 0.65),
+                                  ),
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 8),
                           ],
