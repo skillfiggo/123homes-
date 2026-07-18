@@ -42,7 +42,7 @@ class AppDrawer extends StatelessWidget {
         backgroundColor: c.surface,
         child: Column(
           children: [
-            _buildHeader(context, c),
+            _buildHeader(context, state, c),
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
@@ -64,7 +64,15 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, AppColorSet c) {
+  Widget _buildHeader(BuildContext context, AppState state, AppColorSet c) {
+    final fallbackAvatar = 'https://api.dicebear.com/7.x/initials/svg?seed=${Uri.encodeComponent(state.fullName)}&backgroundColor=b6e3f4';
+    final isGuest = state.isGuest;
+    final name = isGuest ? 'Guest User' : state.fullName;
+    final email = isGuest ? 'Browse Mode' : state.email;
+    final avatar = isGuest
+        ? 'https://api.dicebear.com/7.x/initials/svg?seed=Guest&backgroundColor=cbd5e1'
+        : (state.avatarUrl ?? fallbackAvatar);
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(18, MediaQuery.of(context).padding.top + 18, 18, 20),
@@ -98,7 +106,7 @@ class AppDrawer extends StatelessWidget {
                 ),
                 child: ClipOval(
                   child: CachedNetworkImage(
-                    imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex&backgroundColor=b6e3f4',
+                    imageUrl: avatar,
                     fit: BoxFit.cover,
                     placeholder: (_, __) => Container(color: Colors.white.withValues(alpha: 0.3)),
                     errorWidget: (_, __, ___) => const Icon(Icons.person, color: Colors.white, size: 28),
@@ -110,10 +118,10 @@ class AppDrawer extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Alex Johnson',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                    Text(name,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
                     const SizedBox(height: 2),
-                    Text('alex.johnson@email.com',
+                    Text(email,
                         style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.7), fontWeight: FontWeight.w500)),
                   ],
                 ),
